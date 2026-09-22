@@ -1,18 +1,20 @@
 {
   "name": "library-management-system",
   "version": "1.0.0",
-  "description": "",
+  "description": "Smart College Library Management System",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start:backend": "node backend/server.js",
+    "test": "echo \"No automated tests configured yet\" && exit 0"
   },
-  "keywords": [],
+  "keywords": [
+    "library",
+    "redis",
+    "mongodb",
+    "cassandra",
+    "neo4j"
+  ],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
-    "cors": "^2.8.6",
-    "express": "^5.2.1",
-    "redis": "^6.2.0"
-  }
+  "type": "commonjs"
 }

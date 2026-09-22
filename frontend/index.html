@@ -1,37 +1,249 @@
 <!DOCTYPE html>
-<html>
-<head>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart College Library Management System</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">CL</div>
+          <div>
+            <h2>College Library</h2>
+            <small>Smart Access</small>
+          </div>
+        </div>
 
-<title>Library Management System</title>
+        <nav class="nav">
+          <button class="nav-item active" data-target="dashboard">Dashboard</button>
+          <button class="nav-item" data-target="catalog">Catalog</button>
+          <button class="nav-item" data-target="borrowed">My Borrowed</button>
+          <button class="nav-item" data-target="reservations">Reservations</button>
+          <button class="nav-item" data-target="recommendations">Recommendations</button>
+          <button class="nav-item" data-target="history">History</button>
+          <button class="nav-item" data-target="profile">Profile</button>
+          <button class="nav-item" data-target="librarian">Librarian</button>
+        </nav>
+      </aside>
 
-<link rel="stylesheet" href="style.css">
+      <main class="main-panel">
+        <div id="notification" class="notification hidden-section" role="status" aria-live="polite"></div>
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Academics</p>
+            <h1>Smart College Library</h1>
+          </div>
+          <div class="topbar-actions">
+            <input id="bookSearch" type="text" placeholder="Search books, author, category, ID" />
+            <button class="primary" id="refreshBtn">Refresh</button>
+          </div>
+        </header>
 
-</head>
+        <section class="stats-grid page-section" data-page="dashboard" id="statsGrid"></section>
 
-<body>
+        <section class="content-grid page-section" data-page="catalog">
+          <div class="panel wide-panel" id="catalogPanel">
+            <div class="panel-header">
+              <h3>Book Catalog</h3>
+              <span class="badge">MongoDB persistent catalog</span>
+            </div>
+            <div id="bookCatalog" class="book-grid"></div>
+          </div>
+        </section>
 
-<h1>Library Management System</h1>
+        <section class="content-grid page-section" data-page="borrowed">
+          <div class="panel wide-panel">
+            <div class="panel-header">
+              <h3>My Borrowed Books</h3>
+              <span class="badge neutral">Redis active issues</span>
+            </div>
+            <div id="borrowedList" class="list-block"></div>
+          </div>
+        </section>
 
-<button onclick="createLibrary()">Create Library</button>
+        <section class="content-grid page-section" data-page="reservations">
+          <div class="panel wide-panel">
+            <div class="panel-header">
+              <h3>Reservations</h3>
+              <span class="badge warning">Redis waitlist</span>
+            </div>
+            <div id="reservationList" class="list-block"></div>
+          </div>
+        </section>
 
-<button onclick="addBooks()">Add Default Books</button>
+        <section class="content-grid page-section" data-page="recommendations">
+          <div class="panel wide-panel">
+            <div class="panel-header">
+              <h3>Recommended For You</h3>
+              <span class="badge success">Neo4j graph</span>
+            </div>
+            <div id="recommendationsList" class="list-block"></div>
+          </div>
+        </section>
 
-<button onclick="insertAI()">Insert AI Book</button>
+        <section class="content-grid page-section" data-page="history">
+          <div class="panel wide-panel">
+            <div class="panel-header">
+              <h3>Library History</h3>
+              <span class="badge info">Cassandra events</span>
+            </div>
+            <div id="historyList" class="list-block"></div>
+          </div>
+        </section>
 
-<button onclick="showBooks()">Show Library Books</button>
+        <section class="content-grid page-section" data-page="profile">
+          <div class="panel wide-panel">
+            <div class="panel-header">
+              <h3>Student Profile</h3>
+              <span class="badge neutral">Academic record</span>
+            </div>
+            <div id="profileCard" class="profile-card"></div>
+          </div>
+        </section>
 
-<button onclick="removeBook()">Remove Computer Networks</button>
+        <section class="content-grid admin-section page-section" data-page="librarian">
+          <div class="panel wide-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Demo librarian panel</p>
+                <h3>Librarian Management</h3>
+              </div>
+              <button class="primary" id="addBookButton" type="button">Add New Book</button>
+            </div>
+            <div class="librarian-stats" id="librarianStats"></div>
+            <div class="catalog-toolbar">
+              <input id="librarianSearch" type="search" placeholder="Search title, author, ID" />
+              <select id="librarianCategory">
+                <option value="">All categories</option>
+              </select>
+            </div>
+            <div class="table-wrap">
+              <table class="books-table">
+                <thead>
+                  <tr>
+                    <th>Book ID</th>
+                    <th>Title</th>
+                    <th>Author</th>
+                    <th>Category</th>
+                    <th>Shelf</th>
+                    <th>Total</th>
+                    <th>Available</th>
+                    <th>Borrowed</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="librarianBooksBody"></tbody>
+              </table>
+            </div>
+            <div id="librarianEmpty" class="empty-state hidden-section">No books match the current filters.</div>
+          </div>
+        </section>
 
-<button onclick="issueBook()">Issue Clean Code</button>
+        <section class="content-grid admin-section page-section" data-page="librarian">
+          <div class="panel wide-panel">
+            <div class="panel-header">
+              <h3>Student Administration</h3>
+              <span class="badge neutral">MongoDB students</span>
+            </div>
+            <div class="admin-actions">
+              <form id="addStudentForm" class="stack-form">
+                <h4>Add Student</h4>
+                <input name="studentId" placeholder="Student ID" required />
+                <input name="name" placeholder="Name" required />
+                <input name="email" placeholder="Email" required />
+                <input name="department" placeholder="Department" required />
+                <input name="year" placeholder="Year" required />
+                <button class="primary" type="submit">Save Student</button>
+              </form>
+            </div>
+          </div>
+        </section>
 
-<button onclick="showIssued()">Show Issued Books</button>
+        <section class="content-grid page-section" data-page="dashboard">
+          <div class="panel wide-panel">
+            <div class="panel-header">
+              <h3>Redis Operations</h3>
+              <span class="badge alternate">Original lab requirement</span>
+            </div>
+            <div class="redis-actions">
+              <button class="secondary" data-redis="create">Create Library</button>
+              <button class="secondary" data-redis="add">Add Default Books</button>
+              <button class="secondary" data-redis="insert">Insert AI Book</button>
+              <button class="secondary" data-redis="show">Show Library Books</button>
+              <button class="secondary" data-redis="remove">Remove Computer Networks</button>
+              <button class="secondary" data-redis="issue">Issue Clean Code</button>
+              <button class="secondary" data-redis="issued">Show Issued Books</button>
+            </div>
+            <pre id="redisOutput" class="redis-output">Redis operations output appears here.</pre>
+          </div>
+        </section>
+      </main>
+    </div>
 
-<h2>Output</h2>
+    <div id="librarianModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" data-close-librarian-modal="true"></div>
+      <div class="modal-card librarian-modal-card" role="dialog" aria-modal="true" aria-labelledby="librarianModalTitle">
+        <button class="modal-close" type="button" data-close-librarian-modal="true" aria-label="Close">×</button>
+        <p class="eyebrow">Librarian Management</p>
+        <h3 id="librarianModalTitle">Add New Book</h3>
+        <form id="librarianBookForm" class="stack-form modal-form">
+          <input name="bookId" placeholder="Book ID" required />
+          <input name="title" placeholder="Book Title" required />
+          <input name="author" placeholder="Author" required />
+          <input name="category" placeholder="Category" required />
+          <input name="shelf" placeholder="Shelf" required />
+          <textarea name="description" placeholder="Description" rows="3"></textarea>
+          <input name="totalCopies" type="number" min="1" placeholder="Total Copies" required />
+          <button class="primary" type="submit">Save Book</button>
+        </form>
+      </div>
+    </div>
 
-<div id="output"></div>
+    <div id="inventoryModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" data-close-inventory-modal="true"></div>
+      <div class="modal-card librarian-modal-card" role="dialog" aria-modal="true" aria-labelledby="inventoryModalTitle">
+        <button class="modal-close" type="button" data-close-inventory-modal="true" aria-label="Close">×</button>
+        <p class="eyebrow">Copy Inventory</p>
+        <h3 id="inventoryModalTitle">Adjust Copies</h3>
+        <p id="inventoryModalSummary" class="detail-description"></p>
+        <form id="inventoryForm" class="stack-form modal-form">
+          <input name="quantity" type="number" min="1" placeholder="Quantity" required />
+          <button class="primary" type="submit">Apply Change</button>
+        </form>
+      </div>
+    </div>
 
-<script src="script.js"></script>
+    <div id="bookDetailsModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" data-close-modal="true"></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="bookDetailsTitle">
+        <button class="modal-close" type="button" data-close-modal="true" aria-label="Close">×</button>
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">Catalog Details</p>
+            <h3 id="bookDetailsTitle">Book Title</h3>
+          </div>
+          <img id="bookQrCode" alt="Book QR code" class="qr-image" />
+        </div>
+        <div class="modal-body">
+          <div class="detail-row"><span>Author</span><strong id="detailAuthor">-</strong></div>
+          <div class="detail-row"><span>Category</span><strong id="detailCategory">-</strong></div>
+          <div class="detail-row"><span>Shelf</span><strong id="detailShelf">-</strong></div>
+          <div class="detail-row"><span>Availability</span><strong id="detailAvailability">-</strong></div>
+          <div class="detail-row"><span>ISBN</span><strong id="detailIsbn">-</strong></div>
+          <div class="detail-row"><span>Book ID</span><strong id="detailBookId">-</strong></div>
+          <p id="detailDescription" class="detail-description"></p>
+        </div>
+        <div class="modal-actions">
+          <button class="primary" id="modalBorrowBtn" type="button">Borrow Book</button>
+          <button class="secondary" id="modalReserveBtn" type="button">Reserve</button>
+        </div>
+      </div>
+    </div>
 
-</body>
-
+    <script src="script.js"></script>
+  </body>
 </html>
