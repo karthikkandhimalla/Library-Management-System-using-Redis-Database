@@ -29,6 +29,9 @@ const studentsRouter = require('./routes/students');
 const borrowRouter = require('./routes/borrow');
 const reservationsRouter = require('./routes/reservations');
 const recommendationsRouter = require('./routes/recommendations');
+const { askLibraryAssistant } = require('./services/aiService');
+const { getEmailStatus, sendTestEmail } = require('./services/emailService');
+const { checkDueDateReminders } = require('./services/dueDateService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -41,6 +44,27 @@ app.use('/api/students', studentsRouter);
 app.use('/api/borrow', borrowRouter);
 app.use('/api/reservations', reservationsRouter);
 app.use('/api/recommendations', recommendationsRouter);
+
+app.post('/api/ai/chat', async (req, res) => {
+  try {
+    const { message, question, studentId = 'STU001' } = req.body;
+    const prompt = message || question;
+    if (!prompt || typeof prompt !== 'string') return res.status(400).json({ reply: 'A message is required.' });
+    const reply = await askLibraryAssistant(prompt, studentId);
+    return res.json({ reply, source: process.env.AI_API_KEY ? 'live-library-data-and-ai' : 'live-library-data' });
+  } catch (error) {
+    console.error('AI assistant backend error:', error.stack || error.message);
+    return res.status(503).json({ reply: `AI provider error: ${error.message}` });
+  }
+});
+
+app.get('/api/email/status', (req, res) => res.json(getEmailStatus()));
+
+app.post('/api/email/test', async (req, res) => {
+  if (req.body?.studentId !== 'STU-1001') return res.status(403).json({ message: 'Only the demo librarian can send test email.' });
+  const result = await sendTestEmail(req.body.recipient);
+  return res.status(result.sent ? 200 : 503).json(result);
+});
 
 app.get('/api/dashboard', async (req, res) => {
   try {
@@ -183,4 +207,14 @@ initializeServices().catch((error) => {
 app.listen(PORT, () => {
   console.log('Server running on port', PORT);
   console.log('Redis lab endpoints remain available.');
+});
+
+app.post('/api/email/check-due-dates', async (req, res) => {
+  try {
+    const results = await checkDueDateReminders();
+    return res.json({ checked: results.length, results });
+  } catch (error) {
+    console.error('Due-date reminder check failed:', error.message);
+    return res.status(503).json({ message: 'Unable to check due dates.' });
+  }
 });

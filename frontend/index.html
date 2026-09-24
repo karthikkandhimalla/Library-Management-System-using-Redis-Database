@@ -31,6 +31,7 @@
 
       <main class="main-panel">
         <div id="notification" class="notification hidden-section" role="status" aria-live="polite"></div>
+        <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="false"></div>
         <header class="topbar">
           <div>
             <p class="eyebrow">Academics</p>
@@ -114,6 +115,11 @@
               <button class="primary" id="addBookButton" type="button">Add New Book</button>
             </div>
             <div class="librarian-stats" id="librarianStats"></div>
+            <div class="email-status-panel">
+              <div><strong>Email Service</strong><span id="emailStatus" class="badge warning">Checking...</span></div>
+              <div id="lastEmail" class="email-last">No email attempts yet.</div>
+              <button class="secondary" id="testEmailButton" type="button">Send Test Email</button>
+            </div>
             <div class="catalog-toolbar">
               <input id="librarianSearch" type="search" placeholder="Search title, author, ID" />
               <select id="librarianCategory">
@@ -183,6 +189,13 @@
         </section>
       </main>
     </div>
+
+    <button id="aiToggle" class="ai-toggle" type="button">🤖 AI Library Assistant</button>
+    <aside id="aiPanel" class="ai-panel hidden" aria-label="AI Library Assistant">
+      <div class="ai-panel-header"><div><strong>AI Library Assistant</strong><small>Live library data</small></div><button id="aiClose" class="modal-close" type="button" aria-label="Close assistant">×</button></div>
+      <div id="aiMessages" class="ai-messages"><div class="ai-message assistant">Ask about availability, borrowed books, due dates, shelves, reservations, or recommendations.</div></div>
+      <form id="aiForm" class="ai-form"><input id="aiInput" autocomplete="off" placeholder="Ask the library..." aria-label="Ask the library" /><button id="aiSend" class="primary" type="submit">Send</button></form>
+    </aside>
 
     <div id="librarianModal" class="modal hidden" aria-hidden="true">
       <div class="modal-backdrop" data-close-librarian-modal="true"></div>

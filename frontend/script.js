@@ -9,16 +9,23 @@ const state = {
   inventoryAction: 'add',
 };
 
-let notificationTimer;
+function showToast({ type = 'info', title = 'Library update', message = '', duration = 5000 }) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const icons = { success: '✓', error: '!', warning: '!', info: 'i' };
+  const toast = document.createElement('article');
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `<span class="toast-icon">${icons[type] || icons.info}</span><div class="toast-copy"><strong>${title}</strong><span>${message}</span></div><button class="toast-close" type="button" aria-label="Close notification">×</button>`;
+  toast.querySelector('.toast-close').addEventListener('click', () => toast.remove());
+  container.appendChild(toast);
+  window.setTimeout(() => {
+    toast.classList.add('toast-leaving');
+    window.setTimeout(() => toast.remove(), 250);
+  }, duration);
+}
 
 function notify(message, isError = false) {
-  const notification = document.getElementById('notification');
-  if (!notification) return;
-  window.clearTimeout(notificationTimer);
-  notification.textContent = message;
-  notification.classList.toggle('error', isError);
-  notification.classList.remove('hidden-section');
-  notificationTimer = window.setTimeout(() => notification.classList.add('hidden-section'), 3500);
+  showToast({ type: isError ? 'error' : 'success', title: isError ? 'Request failed' : 'Library update', message });
 }
 
 function showSection(sectionName) {
@@ -175,14 +182,67 @@ async function loadLibrarianPanel() {
     categorySelect.innerHTML = '<option value="">All categories</option>' + categories.map((category) => `<option value="${category}">${category}</option>`).join('');
     categorySelect.value = categories.includes(selectedCategory) ? selectedCategory : '';
     renderLibrarianBooks();
+    await loadEmailStatus();
   } catch (error) {
     notify(error.message, true);
   }
 }
 
+async function loadEmailStatus() {
+  const status = document.getElementById('emailStatus');
+  const lastEmail = document.getElementById('lastEmail');
+  if (!status || !lastEmail) return;
+  try {
+    const result = await fetchJson(`${BASE_URL}/api/email/status`);
+    status.textContent = result.connected ? 'Connected' : 'Not configured';
+    status.className = `badge ${result.connected ? 'success' : 'warning'}`;
+    const email = result.lastEmail;
+    lastEmail.textContent = email
+      ? `${email.recipient} | ${email.subject} | ${new Date(email.timestamp).toLocaleString()} | ${email.status}`
+      : 'No email attempts yet.';
+  } catch (error) {
+    status.textContent = 'Unavailable';
+    status.className = 'badge danger';
+    lastEmail.textContent = error.message;
+  }
+}
+
+function addAssistantMessage(content, role = 'assistant') {
+  const messages = document.getElementById('aiMessages');
+  if (!messages) return;
+  const message = document.createElement('div');
+  message.className = `ai-message ${role}`;
+  message.textContent = content;
+  messages.appendChild(message);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+async function askAssistant(question) {
+  if (!question.trim()) return;
+  addAssistantMessage(question, 'user');
+  const input = document.getElementById('aiInput');
+  const button = document.getElementById('aiSend');
+  input.value = '';
+  button.disabled = true;
+  try {
+    const result = await fetchJson(`${BASE_URL}/api/ai/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: question, studentId: 'STU001' }),
+    });
+    addAssistantMessage(result.reply);
+  } catch (error) {
+    addAssistantMessage(error.message || 'AI assistant is temporarily unavailable.');
+  } finally {
+    button.disabled = false;
+    input.focus();
+  }
+}
+
 async function deleteLibrarianBook(bookId) {
   const book = state.librarianBooks.find((item) => item.bookId === bookId);
-  if (!book || !window.confirm(`Delete ${book.title}? This cannot be undone.`)) return;
+  if (!book) return;
+  showToast({ type: 'warning', title: 'Deleting book', message: `${book.title} will be removed if no copies are borrowed.` });
   try {
     await fetchJson(`${BASE_URL}/api/books/${encodeURIComponent(bookId)}`, { method: 'DELETE' });
     notify('Book deleted successfully.');
@@ -237,7 +297,7 @@ async function fetchJson(url, options = {}) {
   }
 
   if (!response.ok) {
-    throw new Error(typeof data === 'string' ? data : (data && data.message) || 'Request failed.');
+    throw new Error(typeof data === 'string' ? data : (data && (data.message || data.reply)) || 'Request failed.');
   }
 
   return data;
@@ -473,14 +533,15 @@ async function borrowBook(bookId, suppressAlert = false) {
       body: JSON.stringify({ studentId: state.studentId, bookId }),
     });
     if (!suppressAlert) {
-      alert(`${result.message}\nDue date: ${new Date(result.dueDate).toLocaleDateString()}`);
+      showToast({ type: 'success', title: 'Book Borrowed Successfully', message: `${result.title}\nDue date: ${new Date(result.dueDate).toLocaleDateString('en-GB')}` });
+      if (result.email && !result.email.sent) showToast({ type: 'warning', title: 'Email notification could not be sent', message: result.email.error });
     }
     if (document.getElementById('bookDetailsModal')) {
       hideModal();
     }
     await loadDashboard();
   } catch (error) {
-    alert(error.message);
+    showToast({ type: 'error', title: 'Borrowing failed', message: error.message });
   }
 }
 
@@ -492,14 +553,15 @@ async function reserveBook(bookId, suppressAlert = false) {
       body: JSON.stringify({ studentId: state.studentId, bookId }),
     });
     if (!suppressAlert) {
-      alert(`Reservation created. Your position in queue: #${result.position || 1}`);
+      showToast({ type: 'success', title: 'Reservation Successful', message: `You have been added to the waiting queue at position #${result.position || 1}.` });
+      if (result.email && !result.email.sent) showToast({ type: 'warning', title: 'Email notification could not be sent', message: result.email.error });
     }
     if (document.getElementById('bookDetailsModal')) {
       hideModal();
     }
     await loadDashboard();
   } catch (error) {
-    alert(error.message);
+    showToast({ type: 'error', title: 'Reservation failed', message: error.message });
   }
 }
 
@@ -511,11 +573,12 @@ async function returnBookAction(bookId, suppressAlert = false) {
       body: JSON.stringify({ studentId: state.studentId, bookId }),
     });
     if (!suppressAlert) {
-      alert(result.message || 'Book returned successfully.');
+      showToast({ type: 'success', title: 'Book Returned', message: `${result.title || bookId} has been successfully returned.` });
+      if (result.email && !result.email.sent) showToast({ type: 'warning', title: 'Email notification could not be sent', message: result.email.error });
     }
     await loadDashboard();
   } catch (error) {
-    alert(error.message);
+    showToast({ type: 'error', title: 'Return failed', message: error.message });
   }
 }
 
@@ -576,6 +639,30 @@ document.querySelectorAll('[data-redis]').forEach((button) => {
 });
 
 document.getElementById('addBookButton')?.addEventListener('click', () => openLibrarianBookModal());
+
+document.getElementById('aiToggle')?.addEventListener('click', () => {
+  const panel = document.getElementById('aiPanel');
+  panel.classList.toggle('hidden');
+  if (!panel.classList.contains('hidden')) document.getElementById('aiInput')?.focus();
+});
+
+document.getElementById('aiClose')?.addEventListener('click', () => document.getElementById('aiPanel')?.classList.add('hidden'));
+document.getElementById('aiForm')?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  askAssistant(document.getElementById('aiInput').value);
+});
+
+document.getElementById('testEmailButton')?.addEventListener('click', async () => {
+  try {
+    const result = await fetchJson(`${BASE_URL}/api/email/test`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studentId: state.studentId }),
+    });
+    showToast({ type: 'success', title: 'Test email sent', message: result.messageId || 'The email service accepted the message.' });
+  } catch (error) {
+    showToast({ type: 'error', title: 'Test email failed', message: error.message });
+  }
+  await loadEmailStatus();
+});
 
 document.getElementById('librarianSearch')?.addEventListener('input', renderLibrarianBooks);
 document.getElementById('librarianCategory')?.addEventListener('change', renderLibrarianBooks);
@@ -644,9 +731,9 @@ document.getElementById('addBookForm')?.addEventListener('submit', async (event)
     });
     form.reset();
     await loadDashboard();
-    alert('Book saved successfully.');
+    showToast({ type: 'success', title: 'Book Saved', message: 'The catalog has been updated.' });
   } catch (error) {
-    alert(error.message);
+    showToast({ type: 'error', title: 'Book save failed', message: error.message });
   }
 });
 
@@ -662,9 +749,9 @@ document.getElementById('addStudentForm')?.addEventListener('submit', async (eve
       body: JSON.stringify(payload),
     });
     form.reset();
-    alert('Student saved successfully.');
+    showToast({ type: 'success', title: 'Student Saved', message: 'The student record has been created.' });
   } catch (error) {
-    alert(error.message);
+    showToast({ type: 'error', title: 'Student save failed', message: error.message });
   }
 });
 

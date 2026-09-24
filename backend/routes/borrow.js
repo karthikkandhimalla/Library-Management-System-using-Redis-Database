@@ -4,6 +4,7 @@ const { borrowBook, returnBook, getBookById, getStudent } = require('../services
 const { markIssueInRedis, removeActiveIssue, getActiveIssuesForStudent, getReservationQueue, popNextReservation } = require('../services/redisService');
 const { logHistory } = require('../services/cassandraService');
 const { borrowRelationship, returnRelationship } = require('../services/neo4jService');
+const { sendBorrowConfirmation, sendReturnConfirmation, sendBookAvailableNotification } = require('../services/emailService');
 
 function calculateDueDate(daysFromNow = 14) {
   const due = new Date();
@@ -38,6 +39,7 @@ router.post('/', async (req, res) => {
     await markIssueInRedis(bookId, studentId, dueDate);
     await logHistory(studentId, bookId, 'BORROW', dueDate);
     await borrowRelationship(studentId, bookId);
+    const email = await sendBorrowConfirmation(student, book, dueDate);
 
     res.json({
       message: 'Book borrowed successfully.',
@@ -50,6 +52,7 @@ router.post('/', async (req, res) => {
       totalCopies: updatedBook.totalCopies,
       availableCopies: updatedBook.availableCopies,
       borrowedCopies: updatedBook.totalCopies - updatedBook.availableCopies,
+      email,
     });
   } catch (error) {
     res.status(503).json({ message: error.message || 'Borrowing failed.' });
@@ -67,6 +70,7 @@ router.post('/return', async (req, res) => {
     await removeActiveIssue(studentId, bookId);
     await logHistory(studentId, bookId, 'RETURN', new Date().toISOString());
     await returnRelationship(studentId, bookId);
+    const student = await getStudent(studentId);
 
     const queue = await getReservationQueue(bookId);
     let queueMessage = 'Book returned successfully.';
@@ -75,8 +79,12 @@ router.post('/return', async (req, res) => {
       queueMessage = `Book is now available for the next student in the reservation queue.`;
       if (nextStudent) {
         queueMessage += ` Next student: ${nextStudent}`;
+        const nextStudentRecord = await getStudent(nextStudent);
+        await sendBookAvailableNotification(nextStudentRecord, book);
       }
     }
+
+    const email = await sendReturnConfirmation(student, book);
 
     res.json({
       message: queueMessage,
@@ -88,6 +96,7 @@ router.post('/return', async (req, res) => {
       availableCopies: updatedBook?.availableCopies,
       borrowedCopies: updatedBook ? updatedBook.totalCopies - updatedBook.availableCopies : undefined,
       updatedBook,
+      email,
     });
   } catch (error) {
     res.status(503).json({ message: error.message || 'Return failed.' });

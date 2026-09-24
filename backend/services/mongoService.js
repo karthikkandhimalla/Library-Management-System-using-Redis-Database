@@ -252,13 +252,18 @@ async function ensureDefaultStudent() {
   if (!existing) {
     const student = {
       studentId: 'STU-1001',
-      name: 'Aanya Sharma',
+      name: 'Karthik',
       email: 'aanya.sharma@college.edu',
       department: 'Computer Science',
       year: '3rd Year',
     };
     await studentsCollection.insertOne(student);
     return student;
+  }
+
+  if (existing.name !== 'Karthik') {
+    await studentsCollection.updateOne({ studentId: 'STU-1001' }, { $set: { name: 'Karthik' } });
+    existing.name = 'Karthik';
   }
 
   return existing;
